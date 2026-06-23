@@ -1,0 +1,71 @@
+# configs/dqn_baseline.yaml
+# --------------------------
+# Hyperparameters for the DQN baseline agent on Solaris.
+#
+# Deviations from vanilla Mnih et al. (2015) are marked with [ADJUSTED]
+# and explained below.
+#
+# Rationale for adjustments is based on our exploration data:
+#   - Random agent mean reward: 2670 (non-trivial baseline)
+#   - Reward density: 0.0024 (very sparse)
+#   - Mean episode length: 6638 agent steps
+
+experiment:
+  name: "double_dqn_baseline"
+  seed: 616
+  total_steps: 10_000_000        # 10M steps for first checkpoint
+  eval_freq: 100_000             # Evaluate every 100K steps
+  eval_episodes: 10              # Episodes per evaluation
+  checkpoint_freq: 100_000       # Save checkpoint every 100K steps
+  log_freq: 1_000                # Log metrics every 1K steps
+
+environment:
+  name: "ALE/Solaris-v5"
+  frame_skip: 4
+  frame_stack: 4
+  noop_max: 30
+  sticky_action_prob: 0.25       # Machado et al. (2018) standard
+  clip_rewards: true
+  episodic_life: true
+
+agent:
+  # Network
+  architecture: "standard"       # "standard" or "dueling"
+  double_dqn: true              # Enable for Week 2
+
+  # Optimiser
+  lr: 0.0001                     # Adam lr; Mnih used RMSProp but Adam is more stable
+  optimizer_eps: 0.00015         # Adam epsilon (1.5e-4, from Rainbow paper)
+
+  # RL
+  gamma: 0.99                    # Discount factor
+
+  # Replay buffer
+  buffer_capacity: 500_000       # [ADJUSTED] Mnih: 1M → 500K
+                                 # Rationale: long episodes (6638 steps) fill
+                                 # the buffer quickly; saves ~3.5GB of GPU memory
+
+  batch_size: 32
+
+  # Training schedule
+  learning_starts: 20_000        # [ADJUSTED] Mnih: 50K → 20K
+                                 # Rationale: random agent already scores ~2670,
+                                 # useful transitions appear early
+
+  target_update_freq: 10_000     # Hard target network update interval (steps)
+
+  # Exploration
+  eps_start: 1.0
+  eps_end: 0.01
+  eps_decay_steps: 750_000       # [ADJUSTED] Mnih: 1M → 750K
+                                 # Rationale: reward is not zero from the start;
+                                 # can afford faster transition to exploitation
+
+  # Gradient clipping
+  grad_clip_norm: 10.0           # Clip gradient norm; stabilises early training
+
+logging:
+  use_wandb: true
+  wandb_project: "solaris-rl"
+  wandb_entity: null             # Set to your W&B username if needed
+  use_tensorboard: false         # Alternative to W&B

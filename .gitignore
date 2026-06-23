@@ -2,4 +2,8 @@ __pycache__/
 .pytest_cache/
 .vscode/
 */*.pyc
+checkpoints/
+*.pt
+__pycache__/
+.pytest_cache/
 
