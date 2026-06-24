@@ -246,27 +246,18 @@ def train(config: dict, seed: int, use_wandb: bool, resume: bool) -> None:
     if use_wandb and log_cfg.get("use_wandb", False):
         try:
             import wandb
+            wandb_run = wandb.init(
+            project=log_cfg["wandb_project"],
+            entity=log_cfg.get("wandb_entity"),
+            name=exp_name,
+            id=exp_name,
+            resume="allow",
+            config={**config, "seed": seed},
+            )
             if start_step > 0:
-                wandb_run = wandb.init(
-                    project=log_cfg["wandb_project"],
-                    entity=log_cfg.get("wandb_entity"),
-                    name=exp_name,
-                    id=exp_name,
-                    resume="must",
-                    config={**config, "seed": seed},
-                )
-                print(f"  📡 W&B resumed run: {wandb_run.url}\n")
+            print(f" [W&B] resumed run: {wandb_run.url}\n")
             else:
-                wandb_run = wandb.init(
-                    project=log_cfg["wandb_project"],
-                    entity=log_cfg.get("wandb_entity"),
-                    name=exp_name,
-                    id=exp_name,
-                    resume="allow",
-                    force=True,
-                    config={**config, "seed": seed},
-                )
-                print(f"  📡 W&B new run: {wandb_run.url}\n")
+            print(f" [W&B] new run: {wandb_run.url}\n")
         except ImportError:
             print("  ⚠️  wandb not installed; logging to stdout only.\n")
 
