@@ -167,29 +167,6 @@ def train(config: dict, seed: int, use_wandb: bool, resume: bool) -> None:
     print(f"{'='*55}\n")
 
     # ----------------------------------------------------------------
-    # W&B initialisation
-    # ----------------------------------------------------------------
-    wandb_run = None
-    if use_wandb and log_cfg.get("use_wandb", False):
-        try:
-            import wandb
-            # Use a stable run id derived from the experiment name so that
-            # resumed sessions append to the SAME W&B run instead of creating
-            # a new one each time — critical for a continuous learning curve
-            # when training is chunked across multiple Colab/Kaggle sessions.
-            wandb_run = wandb.init(
-                project=log_cfg["wandb_project"],
-                entity=log_cfg.get("wandb_entity"),
-                name=exp_name,
-                id=exp_name,
-                resume="allow",
-                config={**config, "seed": seed},
-            )
-            print(f"  📡 W&B run: {wandb_run.url}\n")
-        except ImportError:
-            print("  ⚠️  wandb not installed; logging to stdout only.\n")
-
-    # ----------------------------------------------------------------
     # Environment
     # ----------------------------------------------------------------
     env = make_solaris_env(
@@ -247,6 +224,51 @@ def train(config: dict, seed: int, use_wandb: bool, resume: bool) -> None:
         else:
             print(f"  ℹ️  --resume set but no checkpoint found in "
                   f"{checkpoint_dir}; starting fresh.\n")
+
+    # ----------------------------------------------------------------
+    # W&B initialisation — AFTER checkpoint detection
+    # ----------------------------------------------------------------
+    # Placed here deliberately so we know start_step before choosing
+    # W&B resume mode:
+    #
+    #   start_step > 0 (checkpoint found) → resume="must"
+    #     Append to the existing run. W&B's step counter is already at
+    #     start_step, so all log(step=t) calls with t >= start_step are valid
+    #     and no "step less than current" warnings will fire.
+    #
+    #   start_step == 0 (no checkpoint) → force=True
+    #     Wipe any stale run under this id and start clean. This prevents
+    #     warnings when a previous run logged beyond its last checkpoint
+    #     (e.g. run logged to step 95K but checkpoint was never saved,
+    #     so resuming would attempt to log from step 1 again — rejected
+    #     by W&B as non-monotonic).
+    wandb_run = None
+    if use_wandb and log_cfg.get("use_wandb", False):
+        try:
+            import wandb
+            if start_step > 0:
+                wandb_run = wandb.init(
+                    project=log_cfg["wandb_project"],
+                    entity=log_cfg.get("wandb_entity"),
+                    name=exp_name,
+                    id=exp_name,
+                    resume="must",
+                    config={**config, "seed": seed},
+                )
+                print(f"  📡 W&B resumed run: {wandb_run.url}\n")
+            else:
+                wandb_run = wandb.init(
+                    project=log_cfg["wandb_project"],
+                    entity=log_cfg.get("wandb_entity"),
+                    name=exp_name,
+                    id=exp_name,
+                    resume="allow",
+                    force=True,
+                    config={**config, "seed": seed},
+                )
+                print(f"  📡 W&B new run: {wandb_run.url}\n")
+        except ImportError:
+            print("  ⚠️  wandb not installed; logging to stdout only.\n")
 
     # ----------------------------------------------------------------
     # Training loop
