@@ -27,7 +27,7 @@ solaris_rl/
 │   └── explore_env.py       # Day 1-2: random agent + env profiling
 ├── tests/
 │   └── test_wrappers.py     # Unit tests for wrappers
-├── logs/                    # Training logs, W&B runs
+├── logs/                    # Training logs, TensorBoard runs
 ├── checkpoints/             # Model checkpoints
 ├── notebooks/               # Jupyter exploration notebooks
 └── requirements.txt

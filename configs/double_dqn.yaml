@@ -65,7 +65,4 @@ agent:
   grad_clip_norm: 10.0           # Clip gradient norm; stabilises early training
 
 logging:
-  use_wandb: true
-  wandb_project: "solaris-rl"
-  wandb_entity: null             # Set to your W&B username if needed
-  use_tensorboard: false         # Alternative to W&B
+  use_tensorboard: true         # Local TensorBoard logging
