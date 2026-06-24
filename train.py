@@ -255,9 +255,9 @@ def train(config: dict, seed: int, use_wandb: bool, resume: bool) -> None:
             config={**config, "seed": seed},
             )
             if start_step > 0:
-            print(f" [W&B] resumed run: {wandb_run.url}\n")
+                print(f" [W&B] resumed run: {wandb_run.url}\n")
             else:
-            print(f" [W&B] new run: {wandb_run.url}\n")
+                print(f" [W&B] new run: {wandb_run.url}\n")
         except ImportError:
             print("  ⚠️  wandb not installed; logging to stdout only.\n")
 
