@@ -305,9 +305,12 @@ def train(config: dict, seed: int, use_wandb: bool, resume: bool) -> None:
 
         # ── Logging ──────────────────────────────────────────────────
         if t % log_freq == 0:
-            elapsed  = time.time() - t_start
-            sps      = t / elapsed   # Steps per second
-            mean_ret = np.mean(recent_returns) if recent_returns else 0.0
+            elapsed   = time.time() - t_start
+            # SPS counts only steps taken THIS session (not total t),
+            # so it doesn't deflate on resumed runs where t starts high.
+            session_steps = t - start_step
+            sps       = session_steps / elapsed if elapsed > 0 else 0
+            mean_ret  = np.mean(recent_returns) if recent_returns else 0.0
             mean_loss = np.mean(recent_losses) if recent_losses else 0.0
 
             log_data = {
@@ -323,6 +326,9 @@ def train(config: dict, seed: int, use_wandb: bool, resume: bool) -> None:
             }
 
             if wandb_run:
+                # Always log with the true global step t so that resumed
+                # sessions append monotonically to the existing W&B run,
+                # rather than restarting from 1 and triggering step warnings.
                 wandb_run.log(log_data, step=t)
 
             if t % (log_freq * 10) == 0:
@@ -349,7 +355,7 @@ def train(config: dict, seed: int, use_wandb: bool, resume: bool) -> None:
             )
 
             if wandb_run:
-                wandb_run.log(eval_metrics, step=t)
+                wandb_run.log(eval_metrics, step=t)  # t is always the global step
 
         # ── Checkpointing ────────────────────────────────────────────
         if t % checkpoint_freq == 0:
