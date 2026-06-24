@@ -11,7 +11,7 @@
 #   - Mean episode length: 6638 agent steps
 
 experiment:
-  name: "dqn_baseline"
+  name: "double_dqn_baseline"
   seed: 616
   total_steps: 10_000_000        # 10M steps for first checkpoint
   eval_freq: 100_000             # Evaluate every 100K steps
@@ -31,7 +31,7 @@ environment:
 agent:
   # Network
   architecture: "standard"       # "standard" or "dueling"
-  double_dqn: false              # Enable for Week 2
+  double_dqn: true              # Enable for Week 2
 
   # Optimiser
   lr: 0.0001                     # Adam lr; Mnih used RMSProp but Adam is more stable
