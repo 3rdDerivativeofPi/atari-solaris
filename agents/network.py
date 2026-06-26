@@ -10,7 +10,7 @@ The CNN architecture follows Mnih et al. (2015) exactly:
   - FC1:   512 units
   - FC2:   n_actions units (output)
 
-Input:  (batch, 4, 84, 84) uint8 tensor — stacked grayscale frames
+Input:  (batch, 4, 84, 84) uint8 tensor -- stacked grayscale frames
 Output: (batch, n_actions) float32 Q-values
 
 Reference: Mnih et al. (2015), Extended Data Table 1.
@@ -40,11 +40,11 @@ class AtariCNN(nn.Module):
         # Convolutional feature extractor
         # Input: (batch, 4, 84, 84)
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, 32, kernel_size=8, stride=4),  # → (batch, 32, 20, 20)
+            nn.Conv2d(in_channels, 32, kernel_size=8, stride=4),  # -> (batch, 32, 20, 20)
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2),           # → (batch, 64,  9,  9)
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),           # -> (batch, 64,  9,  9)
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1),           # → (batch, 64,  7,  7)
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),           # -> (batch, 64,  7,  7)
             nn.ReLU(),
         )
 
@@ -76,7 +76,7 @@ class AtariCNN(nn.Module):
         Returns:
             Q-values of shape (batch, n_actions).
         """
-        # Normalise uint8 → float32 [0, 1] inside the network
+        # Normalise uint8 -> float32 [0, 1] inside the network
         # This keeps the replay buffer in uint8 (4x memory saving)
         if x.dtype == torch.uint8:
             x = x.float() / 255.0
@@ -88,7 +88,7 @@ class AtariCNN(nn.Module):
 
 class DuelingAtariCNN(nn.Module):
     """
-    Dueling Network architecture (Wang et al., 2016) — for Week 2 / Rainbow.
+    Dueling Network architecture (Wang et al., 2016) -- for Week 2 / Rainbow.
 
     Splits the FC head into two streams:
       - Value stream V(s):        scalar state value
@@ -123,14 +123,14 @@ class DuelingAtariCNN(nn.Module):
 
         conv_out_size = self._get_conv_output_size(in_channels)
 
-        # Value stream: s → V(s) (scalar)
+        # Value stream: s -> V(s) (scalar)
         self.value_stream = nn.Sequential(
             nn.Linear(conv_out_size, 512),
             nn.ReLU(),
             nn.Linear(512, 1),
         )
 
-        # Advantage stream: (s, a) → A(s, a) (vector, one per action)
+        # Advantage stream: (s, a) -> A(s, a) (vector, one per action)
         self.advantage_stream = nn.Sequential(
             nn.Linear(conv_out_size, 512),
             nn.ReLU(),

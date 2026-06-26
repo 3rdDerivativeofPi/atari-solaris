@@ -205,7 +205,7 @@ def train(config: dict, seed: int, resume: bool) -> None:
 	# ----------------------------------------------------------------
 	# Resume from checkpoint (chunked-session training)
 	# ----------------------------------------------------------------
-	# NOTE: the replay buffer is NOT restored — it's too large to checkpoint
+	# NOTE: the replay buffer is NOT restored -- it's too large to checkpoint
 	# cheaply (10-26GB). Resuming starts with an empty buffer that refills
 	# over the first `learning_starts` steps. Network weights, optimiser
 	# state, and step counters (t, epsilon schedule, target update timing)
@@ -217,9 +217,9 @@ def train(config: dict, seed: int, resume: bool) -> None:
 		if latest_ckpt is not None:
 			agent.load_checkpoint(latest_ckpt)
 			start_step = agent.t
-			print(f"  ▶️  Resuming from step {start_step:,} ({latest_ckpt})\n")
+			print(f"  >  Resuming from step {start_step:,} ({latest_ckpt})\n")
 		else:
-			print(f"  ℹ️  --resume set but no checkpoint found in "
+			print(f"  i  --resume set but no checkpoint found in "
 				  f"{checkpoint_dir}; starting fresh.\n")
 
 	# ----------------------------------------------------------------
@@ -247,12 +247,12 @@ def train(config: dict, seed: int, resume: bool) -> None:
 	t_start             = time.time()
 	last_log_t          = 0
 
-	print(f"  🚀 Training started — {total_steps:,} total steps "
+	print(f"  [rocket] Training started -- {total_steps:,} total steps "
 		  f"(resuming from {start_step:,})\n" if start_step else
-		  f"  🚀 Training started — {total_steps:,} total steps\n")
+		  f"  [rocket] Training started -- {total_steps:,} total steps\n")
 
 	if start_step >= total_steps:
-		print(f"  ✅ Checkpoint already at/past total_steps ({start_step:,} "
+		print(f"  [OK] Checkpoint already at/past total_steps ({start_step:,} "
 			  f">= {total_steps:,}); nothing left to train.\n")
 		env.close()
 		if tb_writer:
@@ -283,9 +283,12 @@ def train(config: dict, seed: int, resume: bool) -> None:
 			ep_return = 0.0
 			ep_steps  = 0
 
-		# ── Logging ──────────────────────────────────────────────────
+		# -- Logging --------------------------------------------------
 		if t % log_freq == 0:
 			elapsed   = time.time() - t_start
+			# Force-flush stdout so notebook cells see logs in near-realtime
+			# and so a Kaggle disconnect doesn't lose buffered output.
+			sys.stdout.flush()
 			# SPS counts only steps taken THIS session (not total t),
 			# so it doesn't deflate on resumed runs where t starts high.
 			session_steps = t - start_step
@@ -317,18 +320,18 @@ def train(config: dict, seed: int, resume: bool) -> None:
 					f"Mean return (100ep): {mean_ret:>8.1f} | "
 					f"Loss: {mean_loss:.4f} | "
 					f"Q: {agent.last_mean_q:>7.2f} | "
-					f"ε: {agent.epsilon:.3f} | "
+					f"eps: {agent.epsilon:.3f} | "
 					f"SPS: {sps:.0f}"
 				)
 
-		# ── Evaluation ───────────────────────────────────────────────
+		# -- Evaluation -----------------------------------------------
 		if t % eval_freq == 0:
-			print(f"\n  📊 Evaluating at step {t:,}...")
+			print(f"\n  [chart] Evaluating at step {t:,}...")
 			eval_metrics = evaluate(agent, n_episodes=eval_episodes, seed=seed + 1000)
 
 			print(
 				f"     Eval return: {eval_metrics['eval/mean_return']:.1f} "
-				f"± {eval_metrics['eval/std_return']:.1f} "
+				f"+/- {eval_metrics['eval/std_return']:.1f} "
 				f"(min={eval_metrics['eval/min_return']:.1f}, "
 				f"max={eval_metrics['eval/max_return']:.1f})"
 			)
@@ -338,21 +341,21 @@ def train(config: dict, seed: int, resume: bool) -> None:
 					if isinstance(v, (int, float)):
 						tb_writer.add_scalar(k, v, global_step=t)
 
-		# ── Checkpointing ────────────────────────────────────────────
+		# -- Checkpointing --------------------------------------------
 		if t % checkpoint_freq == 0:
 			ckpt_path = os.path.join(checkpoint_dir, f"step_{t:09d}.pt")
-			agent.save_checkpoint(ckpt_path)
+			agent.save_checkpoint(ckpt_path, hp=config)
 
-	# ── Final checkpoint & cleanup ───────────────────────────────────
+	# -- Final checkpoint & cleanup -----------------------------------
 	final_path = os.path.join(checkpoint_dir, "final.pt")
-	agent.save_checkpoint(final_path)
+	agent.save_checkpoint(final_path, hp=config)
 	env.close()
 
 	if tb_writer:
 		tb_writer.close()
 
 	total_time = time.time() - t_start
-	print(f"\n  ✅ Training complete in {total_time/3600:.2f} hours.")
+	print(f"\n  [OK] Training complete in {total_time/3600:.2f} hours.")
 	print(f"  Final checkpoint: {final_path}\n")
 
 
@@ -376,9 +379,17 @@ def main():
 			 "checkpoint directory, if one exists. Use this for chunked "
 			 "training across multiple Colab/Kaggle sessions."
 	)
+	parser.add_argument(
+		"--total-steps", type=int, default=None,
+		help="Override total_steps from the config. Useful for smoketests "
+			 "(e.g. --total-steps 5000 to validate the pipeline in minutes)."
+	)
 	args = parser.parse_args()
 
 	config = load_config(args.config)
+	if args.total_steps is not None:
+		config["experiment"]["total_steps"] = args.total_steps
+		print(f"  [override] total_steps set to {args.total_steps:,} (from CLI)")
 	train(config=config, seed=args.seed, resume=args.resume)
 
 

@@ -143,7 +143,7 @@ class WarpFrame(gym.ObservationWrapper):
     """
     Convert RGB frames to grayscale and resize to (84, 84).
 
-    This reduces the observation dimensionality by ~3x (color → grayscale)
+    This reduces the observation dimensionality by ~3x (color -> grayscale)
     and standardises the spatial resolution used by the CNN.
 
     Uses INTER_AREA interpolation which is preferred for downscaling
@@ -185,7 +185,7 @@ class FrameStack(gym.Wrapper):
     4 consecutive frames lets the CNN infer object direction and speed, which
     is critical for games like Solaris where ship and enemy motion matters.
 
-    Returns observations of shape (k, H, W) — channels-first for PyTorch.
+    Returns observations of shape (k, H, W) -- channels-first for PyTorch.
 
     Reference: Mnih et al. (2015), standard for all Atari CNN agents.
 
@@ -321,7 +321,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 
 # ---------------------------------------------------------------------------
-# 9. Scaled float observations: convert uint8 [0,255] → float32 [0,1]
+# 9. Scaled float observations: convert uint8 [0,255] -> float32 [0,1]
 # ---------------------------------------------------------------------------
 class ScaledFloatFrame(gym.ObservationWrapper):
     """
@@ -331,7 +331,7 @@ class ScaledFloatFrame(gym.ObservationWrapper):
     in the replay buffer, as storing float32 frames uses 4x more memory
     than uint8. See LazyFrames / the replay buffer implementation.
 
-    NOTE: This wrapper stores float32 in the observation space — only attach
+    NOTE: This wrapper stores float32 in the observation space -- only attach
     it directly before the network, not before the replay buffer.
     """
 
@@ -367,12 +367,12 @@ def make_solaris_env(
     Construct the fully-wrapped Solaris environment.
 
     Applies the standard Atari preprocessing pipeline used in DQN and Rainbow:
-      1. NoopResetEnv        — randomised start states
-      2. MaxAndSkipEnv       — frame skipping + flicker elimination
-      3. EpisodicLifeEnv     — dense terminal signal (training only)
-      4. FireResetEnv        — press FIRE if needed
-      5. WarpFrame           — grayscale + resize to 84×84
-      6. FrameStack          — stack 4 frames, (4, 84, 84), channels-first
+      1. NoopResetEnv        -- randomised start states
+      2. MaxAndSkipEnv       -- frame skipping + flicker elimination
+      3. EpisodicLifeEnv     -- dense terminal signal (training only)
+      4. FireResetEnv        -- press FIRE if needed
+      5. WarpFrame           -- grayscale + resize to 84x84
+      6. FrameStack          -- stack 4 frames, (4, 84, 84), channels-first
 
     Reward clipping and observation scaling are handled separately
     (clipping here; scaling inside the network or training loop).

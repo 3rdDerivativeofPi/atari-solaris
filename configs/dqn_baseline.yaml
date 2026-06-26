@@ -13,10 +13,10 @@
 experiment:
   name: "dqn_baseline"
   seed: 616
-  total_steps: 10_000_000        # 10M steps for first checkpoint
-  eval_freq: 100_000             # Evaluate every 100K steps
-  eval_episodes: 10              # Episodes per evaluation
-  checkpoint_freq: 100_000       # Save checkpoint every 100K steps
+  total_steps: 3_000_000         # 3M steps (~4h on T4) -- one Kaggle session
+  eval_freq: 25_000              # 120 eval points for smooth learning curves
+  eval_episodes: 5               # Mean of 5 is enough signal, halves eval cost
+  checkpoint_freq: 25_000        # ~2 min between saves, protects against disconnects
   log_freq: 1_000                # Log metrics every 1K steps
 
 environment:
@@ -41,14 +41,14 @@ agent:
   gamma: 0.99                    # Discount factor
 
   # Replay buffer
-  buffer_capacity: 500_000       # [ADJUSTED] Mnih: 1M → 500K
-                                 # Rationale: long episodes (6638 steps) fill
-                                 # the buffer quickly; saves ~3.5GB of GPU memory
+  buffer_capacity: 200_000       # [ADJUSTED] Mnih: 1M -> 200K
+                                 # Rationale: long episodes (~6.6K steps) fill
+                                 # the buffer quickly; saves ~17GB of RAM vs 500K
 
   batch_size: 32
 
   # Training schedule
-  learning_starts: 20_000        # [ADJUSTED] Mnih: 50K → 20K
+  learning_starts: 20_000        # [ADJUSTED] Mnih: 50K -> 20K
                                  # Rationale: random agent already scores ~2670,
                                  # useful transitions appear early
 
@@ -56,10 +56,11 @@ agent:
 
   # Exploration
   eps_start: 1.0
-  eps_end: 0.01
-  eps_decay_steps: 750_000       # [ADJUSTED] Mnih: 1M → 750K
-                                 # Rationale: reward is not zero from the start;
-                                 # can afford faster transition to exploitation
+  eps_end: 0.03
+  eps_decay_steps: 750_000       # [ADJUSTED] Mnih: 1M -> 750K (25% of 3M run)
+                                 # Rationale: epsilon reaches floor (0.03) at 25% of run;
+                                 # empirical: faster decay hurt eval
+                                 # in sparse-reward Atari; (eps_end: 0.03)
 
   # Gradient clipping
   grad_clip_norm: 10.0           # Clip gradient norm; stabilises early training

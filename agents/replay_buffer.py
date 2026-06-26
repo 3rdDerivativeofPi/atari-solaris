@@ -4,14 +4,14 @@ agents/replay_buffer.py
 Memory-efficient experience replay buffer for Atari DQN.
 
 Design decisions:
-  - Stores observations as uint8 (not float32) → 4x memory saving.
+  - Stores observations as uint8 (not float32) -> 4x memory saving.
     A 500K buffer of (4, 84, 84) uint8 frames uses ~14 GB if stored as
     float32, but only ~3.5 GB as uint8. Normalisation happens in the network.
   - Uses pre-allocated NumPy arrays (no Python list overhead).
   - Supports uniform random sampling (baseline DQN).
   - Structured for easy extension to Prioritized Experience Replay (Week 2).
 
-Reference: Mnih et al. (2015), Section Methods — Experience Replay.
+Reference: Mnih et al. (2015), Section Methods -- Experience Replay.
 """
 
 import numpy as np

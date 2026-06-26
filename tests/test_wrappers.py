@@ -141,7 +141,7 @@ class TestClipRewardEnv:
     def test_reward_clipping(self, raw_env, reward, expected):
         env = ClipRewardEnv(raw_env)
         clipped = env.reward(reward)
-        assert clipped == expected, f"reward({reward}) → {clipped}, expected {expected}"
+        assert clipped == expected, f"reward({reward}) -> {clipped}, expected {expected}"
 
 
 # ---------------------------------------------------------------------------

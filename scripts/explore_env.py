@@ -60,7 +60,7 @@ def run_random_agent(
     stats = defaultdict(list)
 
     print(f"\n{'='*60}")
-    print(f"  Solaris Environment Exploration — {n_episodes} episodes")
+    print(f"  Solaris Environment Exploration -- {n_episodes} episodes")
     print(f"{'='*60}")
     print(f"  Observation space : {env.observation_space}")
     print(f"  Action space      : {env.action_space}")
@@ -146,11 +146,11 @@ def print_summary(stats: Dict) -> None:
 
     print(f"\n  Reward density interpretation:")
     if reward_density < 0.01:
-        print("    ⚠️  VERY SPARSE — intrinsic exploration bonuses strongly recommended")
+        print("    !  VERY SPARSE -- intrinsic exploration bonuses strongly recommended")
     elif reward_density < 0.05:
-        print("    ⚠️  SPARSE — standard DQN will struggle; consider RND in Week 2")
+        print("    !  SPARSE -- standard DQN will struggle; consider RND in Week 2")
     else:
-        print("    ✓  MODERATE — standard DQN may work, but exploration help is still beneficial")
+        print("    [v]  MODERATE -- standard DQN may work, but exploration help is still beneficial")
 
     print(f"\n{'='*60}\n")
 
@@ -167,7 +167,7 @@ def save_plots(stats: Dict, output_dir: str) -> None:
     nonzero = np.array(stats["nonzero_reward_count"])
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle("Solaris — Random Agent Environment Exploration", fontsize=14, fontweight="bold")
+    fig.suptitle("Solaris -- Random Agent Environment Exploration", fontsize=14, fontweight="bold")
 
     # 1. Episode reward distribution
     ax = axes[0, 0]
@@ -213,7 +213,7 @@ def save_plots(stats: Dict, output_dir: str) -> None:
     plot_path = os.path.join(output_dir, "random_agent_exploration.png")
     plt.savefig(plot_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  📊 Plots saved to: {plot_path}")
+    print(f"  [chart] Plots saved to: {plot_path}")
 
 
 def save_sample_frames(output_dir: str, seed: int = 42) -> None:
@@ -234,7 +234,7 @@ def save_sample_frames(output_dir: str, seed: int = 42) -> None:
 
     # Plot the 4 stacked channels of the last observation
     fig, axes = plt.subplots(1, 4, figsize=(16, 4))
-    fig.suptitle("Solaris — Stacked Frames (most recent obs, channels 0-3)", fontsize=12)
+    fig.suptitle("Solaris -- Stacked Frames (most recent obs, channels 0-3)", fontsize=12)
     for i, ax in enumerate(axes):
         ax.imshow(frames[-1][i], cmap="gray", vmin=0, vmax=255)
         ax.set_title(f"Frame t-{3-i}" if i < 3 else "Frame t")
@@ -244,7 +244,7 @@ def save_sample_frames(output_dir: str, seed: int = 42) -> None:
     frame_path = os.path.join(output_dir, "sample_frames.png")
     plt.savefig(frame_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  🖼️  Sample frames saved to: {frame_path}")
+    print(f"  [image]  Sample frames saved to: {frame_path}")
 
 
 # ---------------------------------------------------------------------------
@@ -262,7 +262,7 @@ def main():
     print_summary(stats)
     save_plots(stats, args.output_dir)
     save_sample_frames(args.output_dir, seed=args.seed)
-    print("  ✅ Exploration complete.\n")
+    print("  [OK] Exploration complete.\n")
 
 
 if __name__ == "__main__":

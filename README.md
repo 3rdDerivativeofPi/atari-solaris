@@ -1,4 +1,4 @@
-# Solaris RL — Atari Reinforcement Learning Research Project
+# Solaris RL -- Atari Reinforcement Learning Research Project
 
 Reproducible RL research on the Solaris Atari 2600 game using ALE + PyTorch.
 
@@ -18,19 +18,19 @@ Reproducible RL research on the Solaris Atari 2600 game using ALE + PyTorch.
 
 ```
 solaris_rl/
-├── env/
-│   ├── __init__.py
-│   └── wrappers.py          # All Atari preprocessing wrappers
-├── agents/                  # DQN, Rainbow (added in Week 1-2)
-├── configs/                 # YAML hyperparameter configs
-├── scripts/
-│   └── explore_env.py       # Day 1-2: random agent + env profiling
-├── tests/
-│   └── test_wrappers.py     # Unit tests for wrappers
-├── logs/                    # Training logs, TensorBoard runs
-├── checkpoints/             # Model checkpoints
-├── notebooks/               # Jupyter exploration notebooks
-└── requirements.txt
++---- env/
+|   +---- __init__.py
+|   +---- wrappers.py          # All Atari preprocessing wrappers
++---- agents/                  # DQN, Rainbow (added in Week 1-2)
++---- configs/                 # YAML hyperparameter configs
++---- scripts/
+|   +---- explore_env.py       # Day 1-2: random agent + env profiling
++---- tests/
+|   +---- test_wrappers.py     # Unit tests for wrappers
++---- logs/                    # Training logs, TensorBoard runs
++---- checkpoints/             # Model checkpoints
++---- notebooks/               # Jupyter exploration notebooks
++---- requirements.txt
 ```
 
 ---
@@ -71,7 +71,7 @@ import ale_py
 gym.register_envs(ale_py)
 env = gym.make('ALE/Solaris-v5', frameskip=1)
 obs, _ = env.reset()
-print('✅ Solaris env OK — obs shape:', obs.shape)
+print('[OK] Solaris env OK -- obs shape:', obs.shape)
 env.close()
 "
 ```
@@ -99,13 +99,13 @@ pytest tests/test_wrappers.py -v
 ## Key Design Decisions
 
 ### Wrapper Stack (in order)
-1. **NoopResetEnv** — Random 1–30 no-ops at episode start (reduces start-state overfitting)
-2. **MaxAndSkipEnv** — Frame skip=4 + pixel-wise max over last 2 frames (eliminates flicker)
-3. **EpisodicLifeEnv** — Life loss = terminal signal during training (denser credit assignment)
-4. **FireResetEnv** — Press FIRE if required at episode start
-5. **WarpFrame** — Grayscale + resize to 84×84 (INTER_AREA interpolation)
-6. **ClipRewardEnv** — Clip to {-1, 0, +1} during training only
-7. **FrameStack(4)** — Stack 4 frames → (4, 84, 84), channels-first for PyTorch
+1. **NoopResetEnv** -- Random 1-30 no-ops at episode start (reduces start-state overfitting)
+2. **MaxAndSkipEnv** -- Frame skip=4 + pixel-wise max over last 2 frames (eliminates flicker)
+3. **EpisodicLifeEnv** -- Life loss = terminal signal during training (denser credit assignment)
+4. **FireResetEnv** -- Press FIRE if required at episode start
+5. **WarpFrame** -- Grayscale + resize to 84x84 (INTER_AREA interpolation)
+6. **ClipRewardEnv** -- Clip to {-1, 0, +1} during training only
+7. **FrameStack(4)** -- Stack 4 frames -> (4, 84, 84), channels-first for PyTorch
 
 ### Sticky Actions
 - Training and eval use `repeat_action_probability=0.25` (Machado et al., 2018)

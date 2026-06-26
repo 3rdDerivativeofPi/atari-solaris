@@ -39,7 +39,7 @@ class DQNAgent:
         batch_size:         Minibatch size for each gradient update.
         learning_starts:    Steps before training begins.
         target_update_freq: Steps between target network hard updates.
-        eps_start:          Initial epsilon for ε-greedy exploration.
+        eps_start:          Initial epsilon for eps-greedy exploration.
         eps_end:            Final epsilon after annealing.
         eps_decay_steps:    Number of steps to anneal epsilon over.
         grad_clip_norm:     Max gradient norm for clipping (None = disabled).
@@ -130,7 +130,7 @@ class DQNAgent:
         print(f"  Buffer capacity : {buffer_capacity:,}")
         print(f"  Buffer memory   : {self.replay_buffer.memory_usage_gb():.2f} GB (allocated)")
         print(f"  Learning starts : {learning_starts:,} steps")
-        print(f"  ε: {eps_start} → {eps_end} over {eps_decay_steps:,} steps")
+        print(f"  eps: {eps_start} -> {eps_end} over {eps_decay_steps:,} steps")
         print(f"{'='*55}\n")
 
     # ------------------------------------------------------------------
@@ -145,7 +145,7 @@ class DQNAgent:
 
     def select_action(self, obs: np.ndarray, eval_mode: bool = False) -> int:
         """
-        Select an action using ε-greedy policy.
+        Select an action using eps-greedy policy.
 
         During evaluation (eval_mode=True), uses a fixed small epsilon (0.05)
         as recommended by Mnih et al. to account for stochasticity.
@@ -224,7 +224,7 @@ class DQNAgent:
         Compute TD loss and perform a single gradient update.
 
         Standard DQN:
-            y = r + γ * max_a' Q_target(s', a')        [if not done]
+            y = r + gamma * max_a' Q_target(s', a')        [if not done]
             y = r                                        [if done]
             loss = MSE(Q_online(s, a), y)
 
@@ -296,20 +296,25 @@ class DQNAgent:
         """Hard-copy online network weights to target network."""
         self.target_net.load_state_dict(self.online_net.state_dict())
 
-    def save_checkpoint(self, path: str) -> None:
+    def save_checkpoint(self, path: str, hp: dict = None) -> None:
         """
         Save agent state to disk.
 
         Saves: network weights, optimiser state, step counters.
+        Optionally saves the full hyperparameter dict (hp) so the
+        exact training config can be reconstructed at eval/recording time.
         """
-        torch.save({
+        payload = {
             "t":                  self.t,
             "updates":            self.updates,
             "online_net":         self.online_net.state_dict(),
             "target_net":         self.target_net.state_dict(),
             "optimiser":          self.optimiser.state_dict(),
-        }, path)
-        print(f"  💾 Checkpoint saved → {path}")
+        }
+        if hp is not None:
+            payload["hp"] = hp
+        torch.save(payload, path)
+        print(f"  [disk] Checkpoint saved -> {path}")
 
     def load_checkpoint(self, path: str) -> None:
         """Load agent state from a checkpoint file."""
@@ -319,4 +324,4 @@ class DQNAgent:
         self.online_net.load_state_dict(checkpoint["online_net"])
         self.target_net.load_state_dict(checkpoint["target_net"])
         self.optimiser.load_state_dict(checkpoint["optimiser"])
-        print(f"  📂 Checkpoint loaded ← {path} (step {self.t:,})")
+        print(f"  [disk] Checkpoint loaded <- {path} (step {self.t:,})")
