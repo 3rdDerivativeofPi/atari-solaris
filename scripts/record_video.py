@@ -69,7 +69,7 @@ def record_random(out_path, episodes, seed, fps):
 		print(f" Recording random episode {ep+1} -> {ep_path}")
 		obs, _ = env.reset(seed=seed + ep)
 		total, steps, done = 0.0, 0, False
-		with imageio.get_writer(ep_path, fps=fps) as writer:
+		with imageio.get_writer(ep_path, fps=fps, macro_block_size=1) as writer:
 			while not done:
 				writer.append_data(env.render())
 				action = env.action_space.sample()
@@ -114,16 +114,11 @@ def record_trained(out_path, checkpoint_path, episodes, seed, fps):
 	agent.online_net.eval()
 	
 	env = make_video_env(seed=seed)
-	agent_env = make_eval_env(
-		seed=seed,
-		clip_rewards=bool(env_cfg.get("clip_rewards", False)),
-		episodic_life=bool(env_cfg.get("episodic_life", False)),
-		frame_stack=int(env_cfg.get("frame_stack", 4)),
-		frame_skip=int(env_cfg.get("frame_skip", 4)),
-		noop_max=int(env_cfg.get("noop_max", 30)),
-		sticky_action_prob=float(env_cfg.get("sticky_action_prob", 0.25)),
-	)
-	
+	# make_eval_env() is a convenience factory that already hardcodes
+	# clip_rewards=False and episodic_life=False — the only extra args
+	# it accepts are render_mode and seed.
+	agent_env = make_eval_env(seed=seed)
+
 	returns = []
 	for ep in range(episodes):
 		ep_path = out_path if episodes == 1 else out_path.with_name(
@@ -133,7 +128,10 @@ def record_trained(out_path, checkpoint_path, episodes, seed, fps):
 		obs_rgb, _ = env.reset(seed=seed + ep)
 		obs_agent, _ = agent_env.reset(seed=seed + ep)
 		total, steps, done = 0.0, 0, False
-		with imageio.get_writer(ep_path, fps=fps) as writer:
+		# macro_block_size=1 prevents imageio from silently resizing the
+		# 210x160 Atari frame (210 is not divisible by the default 16),
+		# which would introduce unnecessary interpolation artifacts.
+		with imageio.get_writer(ep_path, fps=fps, macro_block_size=1) as writer:
 			while not done:
 				writer.append_data(obs_rgb)
 				action = agent.select_action(obs_agent, eval_mode=True)
