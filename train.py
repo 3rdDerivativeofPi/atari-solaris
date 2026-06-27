@@ -226,8 +226,11 @@ def train(config: dict, seed: int, resume: bool) -> None:
 	if log_cfg.get("use_tensorboard", False):
 		tb_dir = os.path.join(checkpoint_dir, "tb_logs")
 		os.makedirs(tb_dir, exist_ok=True)
+		from torch.utils.tensorboard import SummaryWriter
 		tb_writer = SummaryWriter(log_dir=tb_dir)
 		print(f" [TB] logging to {tb_dir}\n")
+	else:
+		tb_writer = None
 	# ----------------------------------------------------------------
 	# Training loop
 	# ----------------------------------------------------------------
