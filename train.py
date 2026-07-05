@@ -200,6 +200,12 @@ def train(config: dict, seed: int, resume: bool) -> None:
 		grad_clip_norm=     agent_cfg.get("grad_clip_norm", 10.0),
 		double_dqn=         agent_cfg.get("double_dqn", False),
 		dueling=            agent_cfg.get("architecture", "standard") == "dueling",
+		use_per=            agent_cfg.get("use_per", False),
+		per_alpha=          agent_cfg.get("per_alpha", 0.6),
+		per_beta_start=     agent_cfg.get("per_beta_start", 0.4),
+		per_beta_steps=     agent_cfg.get("per_beta_steps", 2_000_000),
+		per_epsilon=        agent_cfg.get("per_epsilon", 1e-6),
+		n_step=             agent_cfg.get("n_step", 1),
 	)
 
 	# ----------------------------------------------------------------
@@ -226,11 +232,8 @@ def train(config: dict, seed: int, resume: bool) -> None:
 	if log_cfg.get("use_tensorboard", False):
 		tb_dir = os.path.join(checkpoint_dir, "tb_logs")
 		os.makedirs(tb_dir, exist_ok=True)
-		from torch.utils.tensorboard import SummaryWriter
 		tb_writer = SummaryWriter(log_dir=tb_dir)
 		print(f" [TB] logging to {tb_dir}\n")
-	else:
-		tb_writer = None
 	# ----------------------------------------------------------------
 	# Training loop
 	# ----------------------------------------------------------------

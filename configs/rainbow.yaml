@@ -1,0 +1,83 @@
+# configs/rainbow.yaml
+# ---------------------
+# Near-Rainbow agent for Solaris:
+#   Double DQN + Dueling networks + Prioritized Experience Replay + 3-step returns
+#
+# Missing Rainbow components (out of scope for this project):
+#   - Distributional RL (C51): requires significant architecture change
+#   - Noisy Networks: would replace epsilon-greedy; adds complexity
+#
+# Hyperparameter rationale:
+#   - n_step=3: directly addresses Solaris's long-horizon credit assignment
+#     problem. Literature (R2D2, Agent57) shows n-step is high-leverage for
+#     this specific failure mode. 3 is a conservative choice; 5 is also common.
+#   - per_alpha=0.6, per_beta_start=0.4: standard values from Schaul et al. (2015)
+#   - per_beta_steps=2_000_000: anneal beta to 1.0 by ~67% of the run
+#   - dueling: already implemented, zero training cost, generally helps
+#     in states where action choice is less critical (large portions of Solaris)
+#
+# Expected improvement over Double DQN:
+#   - PER: focuses learning on surprising/informative transitions.
+#     In Solaris (density=0.0024), most transitions have zero reward —
+#     PER aggressively up-samples the rare non-zero reward events.
+#   - N-step: reward signal propagates 3x faster through the network.
+#   - Dueling: better value estimation, especially in low-action-sensitivity states.
+
+experiment:
+  name: "rainbow"
+  seed: 616
+  total_steps: 3_000_000
+  eval_freq: 25_000
+  eval_episodes: 5
+  checkpoint_freq: 25_000
+  log_freq: 1_000
+
+environment:
+  name: "ALE/Solaris-v5"
+  frame_skip: 4
+  frame_stack: 4
+  noop_max: 30
+  sticky_action_prob: 0.25
+  clip_rewards: true
+  episodic_life: true
+
+agent:
+  # Network
+  architecture: "dueling"        # Dueling streams: V(s) + A(s,a)
+  double_dqn: true
+
+  # Optimiser
+  lr: 0.0001
+  optimizer_eps: 0.00015
+
+  # RL
+  gamma: 0.99
+
+  # Replay buffer
+  buffer_capacity: 200_000
+  batch_size: 32
+
+  # Training schedule
+  learning_starts: 20_000
+  target_update_freq: 10_000
+
+  # Exploration
+  eps_start: 1.0
+  eps_end: 0.03
+  eps_decay_steps: 750_000
+
+  # Gradient clipping
+  grad_clip_norm: 10.0
+
+  # PER — Prioritized Experience Replay
+  use_per: true
+  per_alpha: 0.6               # Priority exponent (Schaul et al. 2015 default)
+  per_beta_start: 0.4          # Initial IS weight exponent
+  per_beta_steps: 2_000_000    # Anneal beta to 1.0 by step 2M
+  per_epsilon: 0.000001        # Floor priority (prevents zero-probability sampling)
+
+  # N-step returns
+  n_step: 3                    # Accumulate 3-step discounted returns before storing
+
+logging:
+  use_tensorboard: true

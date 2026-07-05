@@ -1,0 +1,77 @@
+# configs/per_nstep.yaml
+# -----------------------
+# Ablation: Double DQN + PER + 3-step returns only.
+# No dueling architecture.
+#
+# Purpose: isolate the combined contribution of PER and n-step returns
+# relative to the Double DQN baseline. These two are tested together
+# because they interact naturally — PER prioritizes transitions with
+# high TD error, and n-step returns produce richer TD targets that make
+# those priority signals more informative.
+#
+# Expected benefit for Solaris:
+#   PER: reward density is 0.0024 — most transitions have zero reward
+#   and near-zero TD error. PER aggressively up-samples the rare
+#   non-zero reward transitions, making learning much more efficient.
+#
+#   N-step (n=3): instead of waiting for the reward to propagate back
+#   one step at a time through the value function, the 3-step return
+#   directly injects reward signal 3 steps deeper. This directly
+#   addresses Solaris's long-horizon credit assignment problem identified
+#   in the DeepMind literature review.
+#
+# References:
+#   Schaul et al. (2015) "Prioritized Experience Replay". ICLR 2016.
+#   Sutton (1988) "Learning to Predict by the Methods of Temporal Differences".
+#   Hessel et al. (2017) "Rainbow". AAAI 2018.
+#
+# Compare against: double_dqn.yaml (same except use_per + n_step)
+
+experiment:
+  name: "per_nstep"
+  seed: 616
+  total_steps: 3_000_000
+  eval_freq: 25_000
+  eval_episodes: 5
+  checkpoint_freq: 25_000
+  log_freq: 1_000
+
+environment:
+  name: "ALE/Solaris-v5"
+  frame_skip: 4
+  frame_stack: 4
+  noop_max: 30
+  sticky_action_prob: 0.25
+  clip_rewards: true
+  episodic_life: true
+
+agent:
+  architecture: "standard"       # no dueling — isolated from rainbow.yaml
+  double_dqn: true
+
+  lr: 0.0001
+  optimizer_eps: 0.00015
+  gamma: 0.99
+
+  buffer_capacity: 200_000
+  batch_size: 32
+  learning_starts: 20_000
+  target_update_freq: 10_000
+
+  eps_start: 1.0
+  eps_end: 0.03
+  eps_decay_steps: 750_000
+  grad_clip_norm: 10.0
+
+  # PER
+  use_per: true
+  per_alpha: 0.6
+  per_beta_start: 0.4
+  per_beta_steps: 2_000_000
+  per_epsilon: 0.000001
+
+  # N-step
+  n_step: 3
+
+logging:
+  use_tensorboard: true

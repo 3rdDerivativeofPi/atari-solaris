@@ -1,0 +1,65 @@
+# configs/dueling.yaml
+# --------------------
+# Ablation: Double DQN + Dueling networks only.
+# No PER, no n-step returns.
+#
+# Purpose: isolate the contribution of the Dueling architecture
+# relative to the Double DQN baseline.
+#
+# Dueling network splits the FC head into two streams:
+#   V(s)      — scalar state value (how good is this state regardless of action)
+#   A(s, a)   — per-action advantage (how much better is action a vs average)
+#   Q(s, a)   = V(s) + (A(s, a) - mean_a(A(s, a)))
+#
+# Expected benefit for Solaris:
+#   Many Solaris states involve navigating space where the choice of
+#   action matters less than the overall trajectory. Dueling lets the
+#   network learn V(s) more efficiently in these low-action-sensitivity
+#   states, which should improve value estimation stability.
+#
+# Reference: Wang et al. (2016) "Dueling Network Architectures for
+#   Deep Reinforcement Learning". ICML.
+#
+# Compare against: double_dqn.yaml (identical except architecture)
+
+experiment:
+  name: "dueling"
+  seed: 616
+  total_steps: 3_000_000
+  eval_freq: 25_000
+  eval_episodes: 5
+  checkpoint_freq: 25_000
+  log_freq: 1_000
+
+environment:
+  name: "ALE/Solaris-v5"
+  frame_skip: 4
+  frame_stack: 4
+  noop_max: 30
+  sticky_action_prob: 0.25
+  clip_rewards: true
+  episodic_life: true
+
+agent:
+  architecture: "dueling"        # ← only change vs double_dqn.yaml
+  double_dqn: true
+
+  lr: 0.0001
+  optimizer_eps: 0.00015
+  gamma: 0.99
+
+  buffer_capacity: 200_000
+  batch_size: 32
+  learning_starts: 20_000
+  target_update_freq: 10_000
+
+  eps_start: 1.0
+  eps_end: 0.03
+  eps_decay_steps: 750_000
+  grad_clip_norm: 10.0
+
+  use_per: false
+  n_step: 1
+
+logging:
+  use_tensorboard: true

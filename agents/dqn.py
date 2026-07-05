@@ -4,15 +4,19 @@ agents/dqn.py
 Deep Q-Network (DQN) agent for Atari Solaris.
 
 Implements the core DQN algorithm from Mnih et al. (2015) with:
-  - Experience replay buffer
+  - Experience replay buffer (uniform or prioritized)
   - Target network (hard update every C steps)
   - Epsilon-greedy exploration with linear annealing
   - Gradient clipping (norm 10) for training stability
   - Optional Double DQN action selection (Hasselt et al., 2016)
+  - Optional Prioritized Experience Replay (Schaul et al., 2015)
+  - Optional N-step returns (Sutton, 1988; Rainbow, Hessel et al., 2017)
 
 References:
   - Mnih et al. (2015) "Human-level control through deep reinforcement learning"
   - Hasselt et al. (2016) "Deep Reinforcement Learning with Double Q-learning"
+  - Schaul et al. (2015) "Prioritized Experience Replay"
+  - Hessel et al. (2017) "Rainbow: Combining Improvements in Deep RL"
 """
 
 import numpy as np
@@ -23,6 +27,7 @@ from typing import Optional, Tuple
 
 from agents.network import build_network
 from agents.replay_buffer import ReplayBuffer, Batch
+from agents.per_buffer import PrioritizedReplayBuffer, PERBatch
 
 
 class DQNAgent:
@@ -45,6 +50,12 @@ class DQNAgent:
         grad_clip_norm:     Max gradient norm for clipping (None = disabled).
         double_dqn:         Use Double DQN action selection if True.
         dueling:            Use Dueling network architecture if True.
+        use_per:            Use Prioritized Experience Replay if True.
+        per_alpha:          PER priority exponent (0=uniform, 1=fully prioritized).
+        per_beta_start:     Initial IS weight exponent (annealed to 1.0).
+        per_beta_steps:     Steps to anneal beta from beta_start to 1.0.
+        per_epsilon:        Small constant added to priorities (non-zero sampling).
+        n_step:             N-step return length (1 = standard 1-step TD).
     """
 
     def __init__(
@@ -64,6 +75,12 @@ class DQNAgent:
         grad_clip_norm:     Optional[float] = 10.0,
         double_dqn:         bool = False,
         dueling:            bool = False,
+        use_per:            bool = False,
+        per_alpha:          float = 0.6,
+        per_beta_start:     float = 0.4,
+        per_beta_steps:     int = 2_000_000,
+        per_epsilon:        float = 1e-6,
+        n_step:             int = 1,
     ) -> None:
 
         self.n_actions          = n_actions
@@ -77,6 +94,8 @@ class DQNAgent:
         self.eps_decay_steps    = eps_decay_steps
         self.grad_clip_norm     = grad_clip_norm
         self.double_dqn         = double_dqn
+        self.use_per            = use_per
+        self.n_step             = n_step
 
         # Step counters
         self.t               = 0   # Total environment steps
@@ -114,18 +133,33 @@ class DQNAgent:
         )
 
         # ----------------------------------------------------------------
-        # Replay buffer
+        # Replay buffer — uniform or prioritized
         # ----------------------------------------------------------------
-        self.replay_buffer = ReplayBuffer(
-            capacity=buffer_capacity,
-            obs_shape=obs_shape,
-        )
+        if use_per:
+            self.replay_buffer = PrioritizedReplayBuffer(
+                capacity=buffer_capacity,
+                obs_shape=obs_shape,
+                alpha=per_alpha,
+                beta_start=per_beta_start,
+                beta_steps=per_beta_steps,
+                epsilon=per_epsilon,
+                n_step=n_step,
+                gamma=gamma,
+            )
+        else:
+            self.replay_buffer = ReplayBuffer(
+                capacity=buffer_capacity,
+                obs_shape=obs_shape,
+            )
 
+        arch_str = f"{'Dueling ' if dueling else ''}{'Double ' if double_dqn else ''}DQN"
+        per_str  = f" + PER(α={per_alpha}, β={per_beta_start}→1.0)" if use_per else ""
+        nstep_str = f" + {n_step}-step returns" if n_step > 1 else ""
         print(f"\n{'='*55}")
         print(f"  DQN Agent Initialised")
         print(f"{'='*55}")
         print(f"  Device          : {self.device}")
-        print(f"  Architecture    : {'Dueling ' if dueling else ''}{'Double ' if double_dqn else ''}DQN")
+        print(f"  Architecture    : {arch_str}{per_str}{nstep_str}")
         print(f"  Parameters      : {sum(p.numel() for p in self.online_net.parameters()):,}")
         print(f"  Buffer capacity : {buffer_capacity:,}")
         print(f"  Buffer memory   : {self.replay_buffer.memory_usage_gb():.2f} GB (allocated)")
@@ -209,7 +243,10 @@ class DQNAgent:
             return None
 
         # Perform one gradient update
-        batch = self.replay_buffer.sample(self.batch_size)
+        if self.use_per:
+            batch = self.replay_buffer.sample(self.batch_size, t=self.t)
+        else:
+            batch = self.replay_buffer.sample(self.batch_size)
         loss = self._compute_loss_and_update(batch)
         self.updates += 1
 
@@ -219,73 +256,81 @@ class DQNAgent:
     # Loss computation
     # ------------------------------------------------------------------
 
-    def _compute_loss_and_update(self, batch: Batch) -> float:
+    def _compute_loss_and_update(self, batch) -> float:
         """
         Compute TD loss and perform a single gradient update.
 
-        Standard DQN:
-            y = r + gamma * max_a' Q_target(s', a')        [if not done]
-            y = r                                        [if done]
-            loss = MSE(Q_online(s, a), y)
+        Handles both uniform replay (standard Huber loss) and PER
+        (IS-weighted Huber loss with priority update after the step).
+
+        Standard DQN target:
+            y = r + γ^n * max_a' Q_target(s', a')   [n-step, not done]
+            y = r                                     [done]
 
         Double DQN (if self.double_dqn):
-            action selection: a* = argmax_a' Q_online(s', a')
-            action evaluation: Q_target(s', a*)
-            This decouples selection from evaluation, reducing overestimation.
+            y = r + γ^n * Q_target(s', argmax_a' Q_online(s', a'))
 
-        Reference: Hasselt et al. (2016)
+        PER weighting:
+            loss = mean(w_i * huber(Q(s,a) - y_i))
+            where w_i = (N * P(i))^{-beta} / max_j(w_j)
 
         Returns:
             Scalar loss value (float).
         """
-        # Move batch to device
+        is_per = isinstance(batch, PERBatch)
+
         obs_t      = torch.as_tensor(batch.observations,      device=self.device)
         next_obs_t = torch.as_tensor(batch.next_observations, device=self.device)
         actions_t  = torch.as_tensor(batch.actions,           device=self.device)
         rewards_t  = torch.as_tensor(batch.rewards,           device=self.device)
         dones_t    = torch.as_tensor(batch.dones,             device=self.device)
 
-        # Current Q-values for the actions that were actually taken
-        # Shape: (batch,)
+        # IS weights (ones for uniform replay, actual weights for PER)
+        if is_per:
+            weights_t = torch.as_tensor(batch.weights, device=self.device)
+        else:
+            weights_t = torch.ones(self.batch_size, device=self.device)
+
+        # Current Q-values for taken actions
         current_q = self.online_net(obs_t).gather(
             1, actions_t.unsqueeze(1)
         ).squeeze(1)
 
         # Target Q-values
+        # Note: for n-step returns, gamma is already folded into the
+        # stored reward (r + γr' + γ²r'' + ...), so we use γ^n here.
+        # The PERBatch.rewards already contain the full n-step return.
+        gamma_n = self.gamma ** self.n_step
         with torch.no_grad():
             if self.double_dqn:
-                # Double DQN: online net selects action, target net evaluates it
                 next_actions = self.online_net(next_obs_t).argmax(dim=1, keepdim=True)
                 next_q = self.target_net(next_obs_t).gather(1, next_actions).squeeze(1)
             else:
-                # Standard DQN: target net selects and evaluates
                 next_q = self.target_net(next_obs_t).max(dim=1).values
 
-            # Bellman target: zero out next_q for terminal transitions
-            target_q = rewards_t + self.gamma * next_q * (1.0 - dones_t)
+            target_q = rewards_t + gamma_n * next_q * (1.0 - dones_t)
 
-        # Huber loss (smooth L1): less sensitive to outliers than MSE
-        # This is important for Solaris given its high reward variance (std=2116)
-        loss = nn.functional.smooth_l1_loss(current_q, target_q)
+        # Element-wise Huber loss
+        td_errors = current_q - target_q
+        huber     = nn.functional.huber_loss(current_q, target_q, reduction="none")
 
-        # Gradient update
+        # IS-weighted mean loss
+        loss = (weights_t * huber).mean()
+
         self.optimiser.zero_grad()
         loss.backward()
-
         if self.grad_clip_norm is not None:
-            nn.utils.clip_grad_norm_(
-                self.online_net.parameters(), self.grad_clip_norm
-            )
-
+            nn.utils.clip_grad_norm_(self.online_net.parameters(), self.grad_clip_norm)
         self.optimiser.step()
 
-        # Track mean Q-value for overestimation diagnostics.
-        # A steadily growing mean Q-value (especially relative to the true
-        # achievable returns) is the standard signature of overestimation
-        # bias in vanilla DQN. Comparing this curve between DQN and Double
-        # DQN runs is one of the clearest diagnostic plots in the literature.
-        self.last_mean_q = current_q.mean().item()
+        # Update priorities in PER with fresh TD errors
+        if is_per:
+            self.replay_buffer.update_priorities(
+                batch.indices,
+                td_errors.detach().abs().cpu().numpy(),
+            )
 
+        self.last_mean_q = current_q.mean().item()
         return loss.item()
 
     # ------------------------------------------------------------------
