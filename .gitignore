@@ -6,4 +6,5 @@ checkpoints/
 *.pt
 __pycache__/
 .pytest_cache/
+videos/
 

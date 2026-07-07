@@ -89,10 +89,11 @@ def record_trained(out_path, checkpoint_path, episodes, seed, fps):
 	hp = ckpt.get("hp", {})
 	agent_cfg = hp.get("agent", {})
 	env_cfg = hp.get("environment", {})
-	
+
 	n_actions = int(agent_cfg.get("n_actions", 18))
 	obs_shape = tuple(agent_cfg.get("obs_shape", (4, 84, 84)))
-	online_net = build_network(n_actions=n_actions, dueling=bool(agent_cfg.get("dueling", False)))
+	dueling = agent_cfg.get("architecture", "standard") == "dueling"   # <-- fixed
+
 	agent = DQNAgent(
 		n_actions=n_actions,
 		obs_shape=obs_shape,
@@ -108,7 +109,7 @@ def record_trained(out_path, checkpoint_path, episodes, seed, fps):
 		eps_decay_steps=int(agent_cfg.get("eps_decay_steps", 750_000)),
 		grad_clip_norm=float(agent_cfg.get("grad_clip_norm", 10.0)),
 		double_dqn=bool(agent_cfg.get("double_dqn", False)),
-		dueling=bool(agent_cfg.get("dueling", False)),
+		dueling=dueling,   # <-- fixed
 	)
 	agent.online_net.load_state_dict(ckpt["online_net"])
 	agent.online_net.eval()
